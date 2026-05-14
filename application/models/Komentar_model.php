@@ -2,117 +2,105 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Komentar_model
- * Model untuk mengelola komentar artikel
+ * Komentar Model
  */
-class Komentar_model extends CI_Model
-{
-    public function __construct()
-    {
+class Komentar_model extends CI_Model {
+    
+    private $table = 'komentar';
+    
+    public function __construct() {
         parent::__construct();
-        $this->table = 'komentar';
     }
-
+    
     /**
      * Get all komentar
      */
-    public function get_all($limit = null, $offset = null)
-    {
-        $this->db->select('komentar.*, artikel.judul, users.full_name');
-        $this->db->from($this->table);
-        $this->db->join('artikel', 'komentar.artikel_id = artikel.id');
-        $this->db->join('users', 'komentar.user_id = users.id', 'left');
+    public function get_all($limit = NULL, $offset = 0) {
+        $this->db->select('komentar.*, artikel.judul as artikel_judul, users.full_name');
+        $this->db->join('artikel', 'artikel.id = komentar.artikel_id', 'left');
+        $this->db->join('users', 'users.id = komentar.user_id', 'left');
         $this->db->order_by('komentar.created_at', 'DESC');
         
         if ($limit) {
             $this->db->limit($limit, $offset);
         }
         
-        return $this->db->get()->result_array();
+        return $this->db->get($this->table)->result_array();
     }
-
+    
+    /**
+     * Get komentar by ID
+     */
+    public function get($id) {
+        $this->db->select('komentar.*, artikel.judul as artikel_judul');
+        $this->db->join('artikel', 'artikel.id = komentar.artikel_id', 'left');
+        return $this->db->get_where($this->table, array('komentar.id' => $id))->row_array();
+    }
+    
     /**
      * Get komentar by artikel
      */
-    public function get_by_artikel($artikel_id, $status = 'approved')
-    {
+    public function get_by_artikel($artikel_id, $status = 'approved') {
         $this->db->where('artikel_id', $artikel_id);
         if ($status) {
             $this->db->where('status', $status);
         }
         $this->db->order_by('created_at', 'DESC');
+        
         return $this->db->get($this->table)->result_array();
     }
-
+    
     /**
-     * Get komentar by ID
+     * Count komentar by artikel
      */
-    public function get_by_id($id)
-    {
-        return $this->db->where('id', $id)->get($this->table)->row_array();
+    public function count_by_artikel($artikel_id) {
+        return $this->db->get_where($this->table, array('artikel_id' => $artikel_id, 'status' => 'approved'))->num_rows();
     }
-
+    
+    /**
+     * Count pending komentar
+     */
+    public function count_pending() {
+        return $this->db->get_where($this->table, array('status' => 'pending'))->num_rows();
+    }
+    
     /**
      * Insert komentar
      */
-    public function insert($data)
-    {
-        return $this->db->insert($this->table, $data);
+    public function insert($data) {
+        return $this->db->insert($this->table, $data) ? $this->db->insert_id() : FALSE;
     }
-
+    
     /**
      * Update komentar
      */
-    public function update($id, $data)
-    {
-        return $this->db->where('id', $id)->update($this->table, $data);
+    public function update($id, $data) {
+        $this->db->where('id', $id);
+        return $this->db->update($this->table, $data);
     }
-
+    
     /**
      * Delete komentar
      */
-    public function delete($id)
-    {
-        return $this->db->where('id', $id)->delete($this->table);
+    public function delete($id) {
+        return $this->db->delete($this->table, array('id' => $id));
     }
-
+    
     /**
      * Approve komentar
      */
-    public function approve($id, $user_id)
-    {
-        return $this->db->where('id', $id)->update($this->table, array(
+    public function approve($id, $user_id) {
+        $data = array(
             'status' => 'approved',
             'approved_by' => $user_id
-        ));
+        );
+        return $this->update($id, $data);
     }
-
+    
     /**
      * Reject komentar
      */
-    public function reject($id)
-    {
-        return $this->db->where('id', $id)->update($this->table, array(
-            'status' => 'rejected'
-        ));
-    }
-
-    /**
-     * Get pending komentar count
-     */
-    public function get_pending_count()
-    {
-        return $this->db->where('status', 'pending')->get($this->table)->num_rows();
-    }
-
-    /**
-     * Get pending komentar
-     */
-    public function get_pending($limit = 10, $offset = 0)
-    {
-        $this->db->where('status', 'pending');
-        $this->db->order_by('created_at', 'ASC');
-        $this->db->limit($limit, $offset);
-        return $this->db->get($this->table)->result_array();
+    public function reject($id) {
+        return $this->update($id, array('status' => 'rejected'));
     }
 }

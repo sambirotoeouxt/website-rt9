@@ -2,107 +2,86 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Menu_model
- * Model untuk mengelola menu website
+ * Menu Model
  */
-class Menu_model extends CI_Model
-{
-    public function __construct()
-    {
+class Menu_model extends CI_Model {
+    
+    private $table = 'menu';
+    
+    public function __construct() {
         parent::__construct();
-        $this->table = 'menu';
     }
-
+    
     /**
      * Get all menu
      */
-    public function get_all()
-    {
+    public function get_all() {
+        $this->db->order_by('urutan', 'ASC');
+        return $this->db->get($this->table)->result_array();
+    }
+    
+    /**
+     * Get menu by ID
+     */
+    public function get($id) {
+        return $this->db->get_where($this->table, array('id' => $id))->row_array();
+    }
+    
+    /**
+     * Get active menu only
+     */
+    public function get_active() {
         $this->db->where('status', 1);
-        $this->db->where('parent_id', null);
         $this->db->order_by('urutan', 'ASC');
         return $this->db->get($this->table)->result_array();
     }
-
+    
     /**
-     * Get all menu (admin view - include inactive)
+     * Get parent menu (menu with no parent)
      */
-    public function get_all_admin()
-    {
-        $this->db->where('parent_id', null);
+    public function get_parent_menu() {
+        $this->db->where('parent_id', NULL);
+        $this->db->where('status', 1);
         $this->db->order_by('urutan', 'ASC');
         return $this->db->get($this->table)->result_array();
     }
-
+    
     /**
-     * Get submenu
+     * Get child menu by parent ID
      */
-    public function get_submenu($parent_id)
-    {
+    public function get_child_menu($parent_id) {
         $this->db->where('parent_id', $parent_id);
         $this->db->where('status', 1);
         $this->db->order_by('urutan', 'ASC');
         return $this->db->get($this->table)->result_array();
     }
-
-    /**
-     * Get menu by ID
-     */
-    public function get_by_id($id)
-    {
-        return $this->db->where('id', $id)->get($this->table)->row_array();
-    }
-
+    
     /**
      * Insert menu
      */
-    public function insert($data)
-    {
-        return $this->db->insert($this->table, $data);
+    public function insert($data) {
+        return $this->db->insert($this->table, $data) ? $this->db->insert_id() : FALSE;
     }
-
+    
     /**
      * Update menu
      */
-    public function update($id, $data)
-    {
-        return $this->db->where('id', $id)->update($this->table, $data);
+    public function update($id, $data) {
+        $this->db->where('id', $id);
+        return $this->db->update($this->table, $data);
     }
-
+    
     /**
      * Delete menu
      */
-    public function delete($id)
-    {
-        // Delete submenu first
-        $this->db->where('parent_id', $id)->delete($this->table);
-        
-        // Then delete menu
-        return $this->db->where('id', $id)->delete($this->table);
+    public function delete($id) {
+        return $this->db->delete($this->table, array('id' => $id));
     }
-
+    
     /**
-     * Get max urutan
+     * Update order
      */
-    public function get_max_urutan()
-    {
-        $result = $this->db->select_max('urutan')->get($this->table)->row_array();
-        return isset($result['urutan']) ? $result['urutan'] + 1 : 1;
-    }
-
-    /**
-     * Get total menu
-     */
-    public function get_count()
-    {
-        return $this->db->get($this->table)->num_rows();
-    }
-
-    /**
-     * Reorder menu
-     */
-    public function update_urutan($id, $urutan)
-    {
-        return $this->db->where('id', $id)->update($this->table, array('urutan' => $urutan));
+    public function update_order($id, $order) {
+        return $this->update($id, array('urutan' => $order));
     }
 }

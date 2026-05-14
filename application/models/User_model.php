@@ -2,129 +2,106 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * User_model
- * Model untuk mengelola data user
+ * User Model
  */
-class User_model extends CI_Model
-{
-    public function __construct()
-    {
+class User_model extends CI_Model {
+    
+    private $table = 'users';
+    
+    public function __construct() {
         parent::__construct();
-        $this->table = 'users';
     }
-
+    
     /**
      * Get all users
      */
-    public function get_all()
-    {
-        $this->db->order_by('id', 'DESC');
+    public function get_all($limit = NULL, $offset = 0) {
+        $this->db->order_by('created_at', 'DESC');
+        
+        if ($limit) {
+            $this->db->limit($limit, $offset);
+        }
+        
         return $this->db->get($this->table)->result_array();
     }
-
+    
     /**
      * Get user by ID
      */
-    public function get_by_id($id)
-    {
-        return $this->db->where('id', $id)->get($this->table)->row_array();
+    public function get($id) {
+        return $this->db->get_where($this->table, array('id' => $id))->row_array();
     }
-
+    
     /**
      * Get user by username
      */
-    public function get_by_username($username)
-    {
-        return $this->db->where('username', $username)->get($this->table)->row_array();
+    public function get_by_username($username) {
+        return $this->db->get_where($this->table, array('username' => $username))->row_array();
     }
-
+    
     /**
      * Get user by email
      */
-    public function get_by_email($email)
-    {
-        return $this->db->where('email', $email)->get($this->table)->row_array();
+    public function get_by_email($email) {
+        return $this->db->get_where($this->table, array('email' => $email))->row_array();
     }
-
+    
     /**
      * Insert user
      */
-    public function insert($data)
-    {
-        // Hash password
-        $data['password'] = password_hash($data['password'], PASSWORD_BCRYPT);
-        return $this->db->insert($this->table, $data);
+    public function insert($data) {
+        return $this->db->insert($this->table, $data) ? $this->db->insert_id() : FALSE;
     }
-
+    
     /**
      * Update user
      */
-    public function update($id, $data)
-    {
-        // Hash password if provided
-        if (isset($data['password']) && !empty($data['password'])) {
-            $data['password'] = password_hash($data['password'], PASSWORD_BCRYPT);
-        } else {
-            unset($data['password']);
-        }
-        return $this->db->where('id', $id)->update($this->table, $data);
+    public function update($id, $data) {
+        $this->db->where('id', $id);
+        return $this->db->update($this->table, $data);
     }
-
+    
     /**
      * Delete user
      */
-    public function delete($id)
-    {
-        return $this->db->where('id', $id)->delete($this->table);
+    public function delete($id) {
+        return $this->db->delete($this->table, array('id' => $id));
     }
-
+    
     /**
-     * Verify password
+     * Count total users
      */
-    public function verify_password($password, $hash)
-    {
-        return password_verify($password, $hash);
+    public function count_all() {
+        return $this->db->count_all($this->table);
     }
-
+    
+    /**
+     * Search users
+     */
+    public function search($keyword, $limit = NULL, $offset = 0) {
+        $this->db->like('username', $keyword);
+        $this->db->or_like('email', $keyword);
+        $this->db->or_like('full_name', $keyword);
+        $this->db->order_by('created_at', 'DESC');
+        
+        if ($limit) {
+            $this->db->limit($limit, $offset);
+        }
+        
+        return $this->db->get($this->table)->result_array();
+    }
+    
     /**
      * Check if username exists
      */
-    public function username_exists($username, $exclude_id = null)
-    {
-        $this->db->where('username', $username);
-        if ($exclude_id) {
-            $this->db->where('id !=', $exclude_id);
-        }
-        return $this->db->get($this->table)->num_rows() > 0;
+    public function username_exists($username) {
+        return $this->db->get_where($this->table, array('username' => $username))->num_rows() > 0;
     }
-
+    
     /**
      * Check if email exists
      */
-    public function email_exists($email, $exclude_id = null)
-    {
-        $this->db->where('email', $email);
-        if ($exclude_id) {
-            $this->db->where('id !=', $exclude_id);
-        }
-        return $this->db->get($this->table)->num_rows() > 0;
-    }
-
-    /**
-     * Get user count
-     */
-    public function get_count()
-    {
-        return $this->db->get($this->table)->num_rows();
-    }
-
-    /**
-     * Get active users
-     */
-    public function get_active()
-    {
-        $this->db->where('is_active', 1);
-        $this->db->order_by('full_name', 'ASC');
-        return $this->db->get($this->table)->result_array();
+    public function email_exists($email) {
+        return $this->db->get_where($this->table, array('email' => $email))->num_rows() > 0;
     }
 }

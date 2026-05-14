@@ -2,196 +2,139 @@
 defined('BASEPATH') OR exit('No direct script access allowed');
 
 /**
- * Artikel_model
- * Model untuk mengelola artikel dan kegiatan RT
+ * Artikel Model
  */
-class Artikel_model extends CI_Model
-{
-    public function __construct()
-    {
+class Artikel_model extends CI_Model {
+    
+    private $table = 'artikel';
+    
+    public function __construct() {
         parent::__construct();
-        $this->table = 'artikel';
     }
-
+    
     /**
      * Get all artikel
      */
-    public function get_all($limit = null, $offset = null, $status = null)
-    {
+    public function get_all($limit = NULL, $offset = 0) {
         $this->db->select('artikel.*, users.full_name as author_name');
-        $this->db->from($this->table);
-        $this->db->join('users', 'artikel.author_id = users.id');
-        
-        if ($status) {
-            $this->db->where('artikel.status', $status);
-        }
-        
+        $this->db->join('users', 'users.id = artikel.author_id', 'left');
         $this->db->order_by('artikel.created_at', 'DESC');
         
         if ($limit) {
             $this->db->limit($limit, $offset);
         }
         
-        return $this->db->get()->result_array();
+        return $this->db->get($this->table)->result_array();
     }
-
+    
     /**
      * Get artikel by ID
      */
-    public function get_by_id($id)
-    {
+    public function get($id) {
         $this->db->select('artikel.*, users.full_name as author_name');
-        $this->db->from($this->table);
-        $this->db->join('users', 'artikel.author_id = users.id');
-        $this->db->where('artikel.id', $id);
-        return $this->db->get()->row_array();
+        $this->db->join('users', 'users.id = artikel.author_id', 'left');
+        return $this->db->get_where($this->table, array('artikel.id' => $id))->row_array();
     }
-
+    
     /**
      * Get artikel by slug
      */
-    public function get_by_slug($slug)
-    {
-        $this->db->select('artikel.*, users.full_name as author_name');
-        $this->db->from($this->table);
-        $this->db->join('users', 'artikel.author_id = users.id');
-        $this->db->where('artikel.slug', $slug);
-        $this->db->where('artikel.status', 'published');
-        return $this->db->get()->row_array();
+    public function get_by_slug($slug) {
+        $this->db->select('artikel.*, users.full_name as author_name, users.avatar');
+        $this->db->join('users', 'users.id = artikel.author_id', 'left');
+        return $this->db->get_where($this->table, array('slug' => $slug))->row_array();
     }
-
+    
     /**
      * Get published artikel
      */
-    public function get_published($limit = null, $offset = null)
-    {
-        return $this->get_all($limit, $offset, 'published');
-    }
-
-    /**
-     * Get artikel by kategori
-     */
-    public function get_by_kategori($kategori, $limit = 10, $offset = 0)
-    {
+    public function get_published($limit = NULL, $offset = 0) {
         $this->db->select('artikel.*, users.full_name as author_name');
-        $this->db->from($this->table);
-        $this->db->join('users', 'artikel.author_id = users.id');
-        $this->db->where('artikel.kategori', $kategori);
-        $this->db->where('artikel.status', 'published');
+        $this->db->join('users', 'users.id = artikel.author_id', 'left');
+        $this->db->where('status', 'published');
         $this->db->order_by('artikel.created_at', 'DESC');
-        $this->db->limit($limit, $offset);
-        return $this->db->get()->result_array();
+        
+        if ($limit) {
+            $this->db->limit($limit, $offset);
+        }
+        
+        return $this->db->get($this->table)->result_array();
     }
-
+    
     /**
-     * Search artikel
+     * Count published artikel
      */
-    public function search($keyword, $limit = 10, $offset = 0)
-    {
-        $this->db->select('artikel.*, users.full_name as author_name');
-        $this->db->from($this->table);
-        $this->db->join('users', 'artikel.author_id = users.id');
-        $this->db->like('artikel.judul', $keyword);
-        $this->db->or_like('artikel.isi', $keyword);
-        $this->db->where('artikel.status', 'published');
-        $this->db->order_by('artikel.created_at', 'DESC');
-        $this->db->limit($limit, $offset);
-        return $this->db->get()->result_array();
+    public function count_published() {
+        return $this->db->get_where($this->table, array('status' => 'published'))->num_rows();
     }
-
+    
+    /**
+     * Count total artikel
+     */
+    public function count_all() {
+        return $this->db->count_all($this->table);
+    }
+    
     /**
      * Insert artikel
      */
-    public function insert($data)
-    {
-        return $this->db->insert($this->table, $data);
+    public function insert($data) {
+        return $this->db->insert($this->table, $data) ? $this->db->insert_id() : FALSE;
     }
-
+    
     /**
      * Update artikel
      */
-    public function update($id, $data)
-    {
-        return $this->db->where('id', $id)->update($this->table, $data);
+    public function update($id, $data) {
+        $this->db->where('id', $id);
+        return $this->db->update($this->table, $data);
     }
-
+    
     /**
      * Delete artikel
      */
-    public function delete($id)
-    {
-        return $this->db->where('id', $id)->delete($this->table);
+    public function delete($id) {
+        return $this->db->delete($this->table, array('id' => $id));
     }
-
+    
     /**
      * Increment views
      */
-    public function increment_views($id)
-    {
+    public function increment_views($id) {
+        $this->db->set('views', 'views+1', FALSE);
         $this->db->where('id', $id);
-        $this->db->update($this->table, array('views' => $this->db->query("SELECT views FROM {$this->table} WHERE id = {$id}")->row()->views + 1));
-        return $this->db->affected_rows() > 0;
+        return $this->db->update($this->table);
     }
-
+    
     /**
-     * Get total artikel
+     * Search artikel
      */
-    public function get_count($status = null)
-    {
-        if ($status) {
-            $this->db->where('status', $status);
-        }
-        return $this->db->get($this->table)->num_rows();
-    }
-
-    /**
-     * Get latest artikel
-     */
-    public function get_latest($limit = 5)
-    {
-        return $this->get_published($limit, 0);
-    }
-
-    /**
-     * Get most viewed artikel
-     */
-    public function get_most_viewed($limit = 5)
-    {
+    public function search($keyword, $limit = NULL, $offset = 0) {
         $this->db->select('artikel.*, users.full_name as author_name');
-        $this->db->from($this->table);
-        $this->db->join('users', 'artikel.author_id = users.id');
-        $this->db->where('artikel.status', 'published');
-        $this->db->order_by('artikel.views', 'DESC');
-        $this->db->limit($limit);
-        return $this->db->get()->result_array();
+        $this->db->join('users', 'users.id = artikel.author_id', 'left');
+        $this->db->like('judul', $keyword);
+        $this->db->or_like('isi', $keyword);
+        $this->db->order_by('artikel.created_at', 'DESC');
+        
+        if ($limit) {
+            $this->db->limit($limit, $offset);
+        }
+        
+        return $this->db->get($this->table)->result_array();
     }
-
+    
     /**
      * Generate unique slug
      */
-    public function generate_slug($title, $exclude_id = null)
-    {
-        $slug = url_title($title, 'dash', true);
+    public function generate_slug($title) {
+        $slug = url_title($title, '-', TRUE);
+        $count = 1;
         $original_slug = $slug;
-        $counter = 1;
-
-        while ($this->slug_exists($slug, $exclude_id)) {
-            $slug = $original_slug . '-' . $counter;
-            $counter++;
+        
+        while ($this->db->get_where($this->table, array('slug' => $slug))->num_rows() > 0) {
+            $slug = $original_slug . '-' . $count++;
         }
-
+        
         return $slug;
-    }
-
-    /**
-     * Check if slug exists
-     */
-    public function slug_exists($slug, $exclude_id = null)
-    {
-        $this->db->where('slug', $slug);
-        if ($exclude_id) {
-            $this->db->where('id !=', $exclude_id);
-        }
-        return $this->db->get($this->table)->num_rows() > 0;
     }
 }
