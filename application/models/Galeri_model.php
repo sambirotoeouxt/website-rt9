@@ -1,8 +1,12 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-class Galeri_model extends CI_Model {
-
+/**
+ * Galeri_model
+ * Model untuk mengelola galeri/foto
+ */
+class Galeri_model extends CI_Model
+{
     public function __construct()
     {
         parent::__construct();
@@ -10,51 +14,50 @@ class Galeri_model extends CI_Model {
     }
 
     /**
-     * Get galeri by ID
-     */
-    public function get($id)
-    {
-        return $this->db->select('g.*, u.full_name as uploaded_by_name')
-            ->from($this->table . ' g')
-            ->join('users u', 'g.uploaded_by = u.id', 'left')
-            ->where('g.id', $id)
-            ->get()->row_array();
-    }
-
-    /**
      * Get all galeri
      */
-    public function get_all($limit = NULL, $offset = NULL, $filters = array())
+    public function get_all($limit = null, $offset = null)
     {
-        $query = $this->db->select('g.*, u.full_name as uploaded_by_name')
-            ->from($this->table . ' g')
-            ->join('users u', 'g.uploaded_by = u.id', 'left');
-        
-        if (!empty($filters['kategori'])) {
-            $query = $query->where('g.kategori', $filters['kategori']);
-        }
-        
-        $query = $query->order_by('g.created_at', 'DESC');
+        $this->db->select('galeri.*, users.full_name as uploader_name');
+        $this->db->from($this->table);
+        $this->db->join('users', 'galeri.uploaded_by = users.id');
+        $this->db->order_by('galeri.created_at', 'DESC');
         
         if ($limit) {
-            $query = $query->limit($limit, $offset);
+            $this->db->limit($limit, $offset);
         }
         
-        return $query->get()->result_array();
+        return $this->db->get()->result_array();
     }
 
     /**
-     * Count all galeri
+     * Get galeri by ID
      */
-    public function count_all($filters = array())
+    public function get_by_id($id)
     {
-        $query = $this->db;
+        $this->db->select('galeri.*, users.full_name as uploader_name');
+        $this->db->from($this->table);
+        $this->db->join('users', 'galeri.uploaded_by = users.id');
+        $this->db->where('galeri.id', $id);
+        return $this->db->get()->row_array();
+    }
+
+    /**
+     * Get galeri by kategori
+     */
+    public function get_by_kategori($kategori, $limit = null, $offset = null)
+    {
+        $this->db->select('galeri.*, users.full_name as uploader_name');
+        $this->db->from($this->table);
+        $this->db->join('users', 'galeri.uploaded_by = users.id');
+        $this->db->where('galeri.kategori', $kategori);
+        $this->db->order_by('galeri.created_at', 'DESC');
         
-        if (!empty($filters['kategori'])) {
-            $query = $query->where('kategori', $filters['kategori']);
+        if ($limit) {
+            $this->db->limit($limit, $offset);
         }
         
-        return $query->count_all_results($this->table);
+        return $this->db->get()->result_array();
     }
 
     /**
@@ -82,12 +85,28 @@ class Galeri_model extends CI_Model {
     }
 
     /**
-     * Get all categories
+     * Get total galeri
      */
-    public function get_categories()
+    public function get_count()
+    {
+        return $this->db->get($this->table)->num_rows();
+    }
+
+    /**
+     * Get distinct kategori
+     */
+    public function get_distinct_kategori()
     {
         return $this->db->distinct()->select('kategori')
-            ->where('kategori IS NOT NULL', NULL, FALSE)
+            ->where('kategori !=', '')
             ->get($this->table)->result_array();
+    }
+
+    /**
+     * Get latest galeri
+     */
+    public function get_latest($limit = 12)
+    {
+        return $this->get_all($limit, 0);
     }
 }

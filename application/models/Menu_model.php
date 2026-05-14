@@ -1,8 +1,12 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-class Menu_model extends CI_Model {
-
+/**
+ * Menu_model
+ * Model untuk mengelola menu website
+ */
+class Menu_model extends CI_Model
+{
     public function __construct()
     {
         parent::__construct();
@@ -10,27 +14,24 @@ class Menu_model extends CI_Model {
     }
 
     /**
-     * Get menu by ID
+     * Get all menu
      */
-    public function get($id)
+    public function get_all()
     {
-        return $this->db->where('id', $id)->get($this->table)->row_array();
+        $this->db->where('status', 1);
+        $this->db->where('parent_id', null);
+        $this->db->order_by('urutan', 'ASC');
+        return $this->db->get($this->table)->result_array();
     }
 
     /**
-     * Get all active menus
+     * Get all menu (admin view - include inactive)
      */
-    public function get_all($active_only = TRUE)
+    public function get_all_admin()
     {
-        $query = $this->db;
-        
-        if ($active_only) {
-            $query = $query->where('status', 1);
-        }
-        
-        return $query->where('parent_id IS NULL', NULL, FALSE)
-            ->order_by('urutan', 'ASC')
-            ->get($this->table)->result_array();
+        $this->db->where('parent_id', null);
+        $this->db->order_by('urutan', 'ASC');
+        return $this->db->get($this->table)->result_array();
     }
 
     /**
@@ -38,24 +39,18 @@ class Menu_model extends CI_Model {
      */
     public function get_submenu($parent_id)
     {
-        return $this->db->where('parent_id', $parent_id)
-            ->where('status', 1)
-            ->order_by('urutan', 'ASC')
-            ->get($this->table)->result_array();
+        $this->db->where('parent_id', $parent_id);
+        $this->db->where('status', 1);
+        $this->db->order_by('urutan', 'ASC');
+        return $this->db->get($this->table)->result_array();
     }
 
     /**
-     * Get menu with submenu
+     * Get menu by ID
      */
-    public function get_with_submenu($active_only = TRUE)
+    public function get_by_id($id)
     {
-        $menus = $this->get_all($active_only);
-        
-        foreach ($menus as &$menu) {
-            $menu['submenu'] = $this->get_submenu($menu['id']);
-        }
-        
-        return $menus;
+        return $this->db->where('id', $id)->get($this->table)->row_array();
     }
 
     /**
@@ -81,21 +76,33 @@ class Menu_model extends CI_Model {
     {
         // Delete submenu first
         $this->db->where('parent_id', $id)->delete($this->table);
-        // Delete menu
+        
+        // Then delete menu
         return $this->db->where('id', $id)->delete($this->table);
     }
 
     /**
-     * Update menu order
+     * Get max urutan
      */
-    public function update_order($menus)
+    public function get_max_urutan()
     {
-        $success = TRUE;
-        foreach ($menus as $order => $id) {
-            if (!$this->update($id, array('urutan' => $order))) {
-                $success = FALSE;
-            }
-        }
-        return $success;
+        $result = $this->db->select_max('urutan')->get($this->table)->row_array();
+        return isset($result['urutan']) ? $result['urutan'] + 1 : 1;
+    }
+
+    /**
+     * Get total menu
+     */
+    public function get_count()
+    {
+        return $this->db->get($this->table)->num_rows();
+    }
+
+    /**
+     * Reorder menu
+     */
+    public function update_urutan($id, $urutan)
+    {
+        return $this->db->where('id', $id)->update($this->table, array('urutan' => $urutan));
     }
 }

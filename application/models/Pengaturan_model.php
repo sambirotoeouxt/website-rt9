@@ -1,8 +1,12 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-class Pengaturan_model extends CI_Model {
-
+/**
+ * Pengaturan_model
+ * Model untuk mengelola pengaturan website
+ */
+class Pengaturan_model extends CI_Model
+{
     public function __construct()
     {
         parent::__construct();
@@ -10,42 +14,41 @@ class Pengaturan_model extends CI_Model {
     }
 
     /**
-     * Get all settings
+     * Get all pengaturan
      */
     public function get_all()
     {
-        $result = $this->db->get($this->table)->row_array();
-        return $result ? $result : array();
+        return $this->db->get($this->table)->row_array();
     }
 
     /**
-     * Get setting by key
+     * Get by key
      */
     public function get($key)
     {
-        $settings = $this->get_all();
-        return isset($settings[$key]) ? $settings[$key] : NULL;
+        $result = $this->db->get($this->table)->row_array();
+        return isset($result[$key]) ? $result[$key] : null;
     }
 
     /**
-     * Update settings
+     * Update pengaturan
      */
     public function update($data)
     {
-        $settings = $this->get_all();
-        
-        if ($settings) {
-            return $this->db->update($this->table, $data);
-        } else {
-            return $this->db->insert($this->table, $data);
-        }
+        $id = 1; // Assuming single row
+        return $this->db->where('id', $id)->update($this->table, $data);
     }
 
     /**
-     * Update single setting
+     * Get pengaturan kominfo
      */
-    public function update_setting($key, $value)
+    public function get_kontak_info()
     {
-        return $this->update(array($key => $value));
+        $result = $this->db->get($this->table)->row_array();
+        return array(
+            'email' => $result['email'] ?? '',
+            'no_telepon' => $result['no_telepon'] ?? '',
+            'alamat' => $result['alamat'] ?? '',
+        );
     }
 }

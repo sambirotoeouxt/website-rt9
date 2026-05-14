@@ -1,8 +1,12 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-class Artikel_model extends CI_Model {
-
+/**
+ * Artikel_model
+ * Model untuk mengelola artikel dan kegiatan RT
+ */
+class Artikel_model extends CI_Model
+{
     public function __construct()
     {
         parent::__construct();
@@ -10,15 +14,37 @@ class Artikel_model extends CI_Model {
     }
 
     /**
+     * Get all artikel
+     */
+    public function get_all($limit = null, $offset = null, $status = null)
+    {
+        $this->db->select('artikel.*, users.full_name as author_name');
+        $this->db->from($this->table);
+        $this->db->join('users', 'artikel.author_id = users.id');
+        
+        if ($status) {
+            $this->db->where('artikel.status', $status);
+        }
+        
+        $this->db->order_by('artikel.created_at', 'DESC');
+        
+        if ($limit) {
+            $this->db->limit($limit, $offset);
+        }
+        
+        return $this->db->get()->result_array();
+    }
+
+    /**
      * Get artikel by ID
      */
-    public function get($id)
+    public function get_by_id($id)
     {
-        return $this->db->select('a.*, u.full_name as author_name')
-            ->from($this->table . ' a')
-            ->join('users u', 'a.author_id = u.id', 'left')
-            ->where('a.id', $id)
-            ->get()->row_array();
+        $this->db->select('artikel.*, users.full_name as author_name');
+        $this->db->from($this->table);
+        $this->db->join('users', 'artikel.author_id = users.id');
+        $this->db->where('artikel.id', $id);
+        return $this->db->get()->row_array();
     }
 
     /**
@@ -26,47 +52,51 @@ class Artikel_model extends CI_Model {
      */
     public function get_by_slug($slug)
     {
-        return $this->db->select('a.*, u.full_name as author_name')
-            ->from($this->table . ' a')
-            ->join('users u', 'a.author_id = u.id', 'left')
-            ->where('a.slug', $slug)
-            ->get()->row_array();
+        $this->db->select('artikel.*, users.full_name as author_name');
+        $this->db->from($this->table);
+        $this->db->join('users', 'artikel.author_id = users.id');
+        $this->db->where('artikel.slug', $slug);
+        $this->db->where('artikel.status', 'published');
+        return $this->db->get()->row_array();
     }
 
     /**
-     * Get all published articles
+     * Get published artikel
      */
-    public function get_all($limit = NULL, $offset = NULL, $published_only = TRUE)
+    public function get_published($limit = null, $offset = null)
     {
-        $query = $this->db->select('a.*, u.full_name as author_name')
-            ->from($this->table . ' a')
-            ->join('users u', 'a.author_id = u.id', 'left');
-        
-        if ($published_only) {
-            $query = $query->where('a.status', 'published');
-        }
-        
-        $query = $query->order_by('a.created_at', 'DESC');
-        
-        if ($limit) {
-            $query = $query->limit($limit, $offset);
-        }
-        
-        return $query->get()->result_array();
+        return $this->get_all($limit, $offset, 'published');
     }
 
     /**
-     * Count all articles
+     * Get artikel by kategori
      */
-    public function count_all($published_only = TRUE)
+    public function get_by_kategori($kategori, $limit = 10, $offset = 0)
     {
-        $query = $this->db;
-        
-        if ($published_only) {
-            $query = $query->where('status', 'published');
-        }
-        
-        return $query->count_all_results($this->table);
+        $this->db->select('artikel.*, users.full_name as author_name');
+        $this->db->from($this->table);
+        $this->db->join('users', 'artikel.author_id = users.id');
+        $this->db->where('artikel.kategori', $kategori);
+        $this->db->where('artikel.status', 'published');
+        $this->db->order_by('artikel.created_at', 'DESC');
+        $this->db->limit($limit, $offset);
+        return $this->db->get()->result_array();
+    }
+
+    /**
+     * Search artikel
+     */
+    public function search($keyword, $limit = 10, $offset = 0)
+    {
+        $this->db->select('artikel.*, users.full_name as author_name');
+        $this->db->from($this->table);
+        $this->db->join('users', 'artikel.author_id = users.id');
+        $this->db->like('artikel.judul', $keyword);
+        $this->db->or_like('artikel.isi', $keyword);
+        $this->db->where('artikel.status', 'published');
+        $this->db->order_by('artikel.created_at', 'DESC');
+        $this->db->limit($limit, $offset);
+        return $this->db->get()->result_array();
     }
 
     /**
@@ -94,47 +124,74 @@ class Artikel_model extends CI_Model {
     }
 
     /**
-     * Increment view counter
+     * Increment views
      */
     public function increment_views($id)
     {
-        $this->db->set('views', 'views+1', FALSE);
-        return $this->db->where('id', $id)->update($this->table);
+        $this->db->where('id', $id);
+        $this->db->update($this->table, array('views' => $this->db->query("SELECT views FROM {$this->table} WHERE id = {$id}")->row()->views + 1));
+        return $this->db->affected_rows() > 0;
     }
 
     /**
-     * Get artikel by kategori
+     * Get total artikel
      */
-    public function get_by_category($kategori, $limit = NULL, $offset = NULL)
+    public function get_count($status = null)
     {
-        $query = $this->db->select('a.*, u.full_name as author_name')
-            ->from($this->table . ' a')
-            ->join('users u', 'a.author_id = u.id', 'left')
-            ->where('a.kategori', $kategori)
-            ->where('a.status', 'published')
-            ->order_by('a.created_at', 'DESC');
-        
-        if ($limit) {
-            $query = $query->limit($limit, $offset);
+        if ($status) {
+            $this->db->where('status', $status);
         }
-        
-        return $query->get()->result_array();
+        return $this->db->get($this->table)->num_rows();
+    }
+
+    /**
+     * Get latest artikel
+     */
+    public function get_latest($limit = 5)
+    {
+        return $this->get_published($limit, 0);
+    }
+
+    /**
+     * Get most viewed artikel
+     */
+    public function get_most_viewed($limit = 5)
+    {
+        $this->db->select('artikel.*, users.full_name as author_name');
+        $this->db->from($this->table);
+        $this->db->join('users', 'artikel.author_id = users.id');
+        $this->db->where('artikel.status', 'published');
+        $this->db->order_by('artikel.views', 'DESC');
+        $this->db->limit($limit);
+        return $this->db->get()->result_array();
     }
 
     /**
      * Generate unique slug
      */
-    public function generate_slug($title)
+    public function generate_slug($title, $exclude_id = null)
     {
-        $slug = url_title($title, 'dash', TRUE);
-        $count = 1;
+        $slug = url_title($title, 'dash', true);
         $original_slug = $slug;
-        
-        while ($this->db->where('slug', $slug)->count_all_results($this->table) > 0) {
-            $slug = $original_slug . '-' . $count;
-            $count++;
+        $counter = 1;
+
+        while ($this->slug_exists($slug, $exclude_id)) {
+            $slug = $original_slug . '-' . $counter;
+            $counter++;
         }
-        
+
         return $slug;
+    }
+
+    /**
+     * Check if slug exists
+     */
+    public function slug_exists($slug, $exclude_id = null)
+    {
+        $this->db->where('slug', $slug);
+        if ($exclude_id) {
+            $this->db->where('id !=', $exclude_id);
+        }
+        return $this->db->get($this->table)->num_rows() > 0;
     }
 }

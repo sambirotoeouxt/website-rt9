@@ -1,8 +1,12 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-class Komentar_model extends CI_Model {
-
+/**
+ * Komentar_model
+ * Model untuk mengelola komentar artikel
+ */
+class Komentar_model extends CI_Model
+{
     public function __construct()
     {
         parent::__construct();
@@ -10,35 +14,42 @@ class Komentar_model extends CI_Model {
     }
 
     /**
-     * Get komentar by ID
+     * Get all komentar
      */
-    public function get($id)
+    public function get_all($limit = null, $offset = null)
     {
-        return $this->db->where('id', $id)->get($this->table)->row_array();
-    }
-
-    /**
-     * Get all komentar for artikel
-     */
-    public function get_by_artikel($artikel_id, $approved_only = TRUE)
-    {
-        $query = $this->db->where('artikel_id', $artikel_id);
+        $this->db->select('komentar.*, artikel.judul, users.full_name');
+        $this->db->from($this->table);
+        $this->db->join('artikel', 'komentar.artikel_id = artikel.id');
+        $this->db->join('users', 'komentar.user_id = users.id', 'left');
+        $this->db->order_by('komentar.created_at', 'DESC');
         
-        if ($approved_only) {
-            $query = $query->where('status', 'approved');
+        if ($limit) {
+            $this->db->limit($limit, $offset);
         }
         
-        return $query->order_by('created_at', 'ASC')->get($this->table)->result_array();
+        return $this->db->get()->result_array();
     }
 
     /**
-     * Get pending komentars
+     * Get komentar by artikel
      */
-    public function get_pending()
+    public function get_by_artikel($artikel_id, $status = 'approved')
     {
-        return $this->db->where('status', 'pending')
-            ->order_by('created_at', 'DESC')
-            ->get($this->table)->result_array();
+        $this->db->where('artikel_id', $artikel_id);
+        if ($status) {
+            $this->db->where('status', $status);
+        }
+        $this->db->order_by('created_at', 'DESC');
+        return $this->db->get($this->table)->result_array();
+    }
+
+    /**
+     * Get komentar by ID
+     */
+    public function get_by_id($id)
+    {
+        return $this->db->where('id', $id)->get($this->table)->row_array();
     }
 
     /**
@@ -68,32 +79,40 @@ class Komentar_model extends CI_Model {
     /**
      * Approve komentar
      */
-    public function approve($id, $approved_by)
+    public function approve($id, $user_id)
     {
-        return $this->update($id, array(
+        return $this->db->where('id', $id)->update($this->table, array(
             'status' => 'approved',
-            'approved_by' => $approved_by,
-            'updated_at' => date('Y-m-d H:i:s')
+            'approved_by' => $user_id
         ));
     }
 
     /**
      * Reject komentar
      */
-    public function reject($id, $approved_by)
+    public function reject($id)
     {
-        return $this->update($id, array(
-            'status' => 'rejected',
-            'approved_by' => $approved_by,
-            'updated_at' => date('Y-m-d H:i:s')
+        return $this->db->where('id', $id)->update($this->table, array(
+            'status' => 'rejected'
         ));
     }
 
     /**
-     * Count pending komentars
+     * Get pending komentar count
      */
-    public function count_pending()
+    public function get_pending_count()
     {
-        return $this->db->where('status', 'pending')->count_all_results($this->table);
+        return $this->db->where('status', 'pending')->get($this->table)->num_rows();
+    }
+
+    /**
+     * Get pending komentar
+     */
+    public function get_pending($limit = 10, $offset = 0)
+    {
+        $this->db->where('status', 'pending');
+        $this->db->order_by('created_at', 'ASC');
+        $this->db->limit($limit, $offset);
+        return $this->db->get($this->table)->result_array();
     }
 }

@@ -1,8 +1,12 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-class Iuran_model extends CI_Model {
-
+/**
+ * Iuran_model
+ * Model untuk mengelola data iuran kas RT
+ */
+class Iuran_model extends CI_Model
+{
     public function __construct()
     {
         parent::__construct();
@@ -10,64 +14,53 @@ class Iuran_model extends CI_Model {
     }
 
     /**
-     * Get iuran by ID
-     */
-    public function get($id)
-    {
-        return $this->db->where('id', $id)->get($this->table)->row_array();
-    }
-
-    /**
      * Get all iuran
      */
-    public function get_all($limit = NULL, $offset = NULL, $filters = array())
+    public function get_all($limit = null, $offset = null)
     {
-        $query = $this->db->select('i.*, p.nama as penduduk_nama')
-            ->from($this->table . ' i')
-            ->join('penduduk p', 'i.penduduk_id = p.id', 'left');
-        
-        if (!empty($filters['tahun'])) {
-            $query = $query->where('i.tahun', $filters['tahun']);
-        }
-        if (!empty($filters['bulan'])) {
-            $query = $query->where('i.bulan', $filters['bulan']);
-        }
-        if (!empty($filters['status'])) {
-            $query = $query->where('i.status', $filters['status']);
-        }
-        if (!empty($filters['penduduk_id'])) {
-            $query = $query->where('i.penduduk_id', $filters['penduduk_id']);
-        }
-        
-        $query = $query->order_by('i.tahun', 'DESC')->order_by('i.bulan', 'DESC');
-        
+        $this->db->select('iuran_kas.*, penduduk.nama, penduduk.no_rumah, penduduk.rt, penduduk.rw');
+        $this->db->from($this->table);
+        $this->db->join('penduduk', 'iuran_kas.penduduk_id = penduduk.id');
+        $this->db->order_by('iuran_kas.tahun', 'DESC');
+        $this->db->order_by('iuran_kas.bulan', 'DESC');
         if ($limit) {
-            $query = $query->limit($limit, $offset);
+            $this->db->limit($limit, $offset);
         }
-        
-        return $query->get()->result_array();
+        return $this->db->get()->result_array();
     }
 
     /**
-     * Count all iuran
+     * Get iuran by ID
      */
-    public function count_all($filters = array())
+    public function get_by_id($id)
     {
-        $query = $this->db->select('i.*, p.nama as penduduk_nama')
-            ->from($this->table . ' i')
-            ->join('penduduk p', 'i.penduduk_id = p.id', 'left');
-        
-        if (!empty($filters['tahun'])) {
-            $query = $query->where('i.tahun', $filters['tahun']);
-        }
-        if (!empty($filters['bulan'])) {
-            $query = $query->where('i.bulan', $filters['bulan']);
-        }
-        if (!empty($filters['status'])) {
-            $query = $query->where('i.status', $filters['status']);
-        }
-        
-        return $query->count_all_results();
+        $this->db->select('iuran_kas.*, penduduk.nama, penduduk.no_rumah');
+        $this->db->from($this->table);
+        $this->db->join('penduduk', 'iuran_kas.penduduk_id = penduduk.id');
+        $this->db->where('iuran_kas.id', $id);
+        return $this->db->get()->row_array();
+    }
+
+    /**
+     * Get iuran by penduduk and bulan/tahun
+     */
+    public function get_by_penduduk_bulan($penduduk_id, $bulan, $tahun)
+    {
+        return $this->db->where('penduduk_id', $penduduk_id)
+            ->where('bulan', $bulan)
+            ->where('tahun', $tahun)
+            ->get($this->table)->row_array();
+    }
+
+    /**
+     * Get iuran by penduduk
+     */
+    public function get_by_penduduk($penduduk_id)
+    {
+        $this->db->where('penduduk_id', $penduduk_id);
+        $this->db->order_by('tahun', 'DESC');
+        $this->db->order_by('bulan', 'DESC');
+        return $this->db->get($this->table)->result_array();
     }
 
     /**
@@ -95,43 +88,82 @@ class Iuran_model extends CI_Model {
     }
 
     /**
-     * Get iuran by penduduk and bulan-tahun
+     * Get iuran bulan tertentu
      */
-    public function get_by_penduduk_bulan($penduduk_id, $bulan, $tahun)
+    public function get_by_bulan_tahun($bulan, $tahun, $limit = null, $offset = null)
     {
-        return $this->db->where(array(
-            'penduduk_id' => $penduduk_id,
-            'bulan' => $bulan,
-            'tahun' => $tahun
-        ))->get($this->table)->row_array();
-    }
-
-    /**
-     * Get iuran summary by status
-     */
-    public function get_summary_by_status()
-    {
-        return $this->db->select('status, COUNT(*) as total, SUM(jumlah_iuran) as jumlah')
-            ->where('tahun', date('Y'))
-            ->group_by('status')
-            ->get($this->table)->result_array();
-    }
-
-    /**
-     * Get total collected iuran
-     */
-    public function get_total_collected($tahun = NULL)
-    {
-        $query = $this->db->select('SUM(jumlah_iuran) as total')
-            ->where('status', 'Sudah Bayar');
-        
-        if ($tahun) {
-            $query = $query->where('tahun', $tahun);
-        } else {
-            $query = $query->where('tahun', date('Y'));
+        $this->db->select('iuran_kas.*, penduduk.nama, penduduk.no_rumah, penduduk.rt, penduduk.rw');
+        $this->db->from($this->table);
+        $this->db->join('penduduk', 'iuran_kas.penduduk_id = penduduk.id');
+        $this->db->where('iuran_kas.bulan', $bulan);
+        $this->db->where('iuran_kas.tahun', $tahun);
+        $this->db->order_by('penduduk.no_rumah', 'ASC');
+        if ($limit) {
+            $this->db->limit($limit, $offset);
         }
-        
-        $result = $query->get($this->table)->row_array();
-        return $result['total'] ? $result['total'] : 0;
+        return $this->db->get()->result_array();
+    }
+
+    /**
+     * Get laporan iuran per tahun
+     */
+    public function get_laporan_tahun($tahun)
+    {
+        $this->db->select('iuran_kas.*, penduduk.nama, penduduk.no_rumah, penduduk.rt');
+        $this->db->from($this->table);
+        $this->db->join('penduduk', 'iuran_kas.penduduk_id = penduduk.id');
+        $this->db->where('iuran_kas.tahun', $tahun);
+        $this->db->order_by('iuran_kas.bulan', 'ASC');
+        $this->db->order_by('penduduk.no_rumah', 'ASC');
+        return $this->db->get()->result_array();
+    }
+
+    /**
+     * Get statistik iuran
+     */
+    public function get_statistik($tahun = null)
+    {
+        if (!$tahun) {
+            $tahun = date('Y');
+        }
+
+        $result = array();
+
+        // Total iuran
+        $this->db->where('tahun', $tahun);
+        $total = $this->db->select_sum('jumlah_iuran')
+            ->get($this->table)->row_array();
+        $result['total_iuran'] = $total['jumlah_iuran'] ?? 0;
+
+        // Status terbayar
+        $this->db->where('tahun', $tahun);
+        $this->db->where('status', 'Sudah Bayar');
+        $result['sudah_bayar'] = $this->db->get($this->table)->num_rows();
+
+        // Status belum bayar
+        $this->db->where('tahun', $tahun);
+        $this->db->where('status', 'Belum Bayar');
+        $result['belum_bayar'] = $this->db->get($this->table)->num_rows();
+
+        // Status menunggak
+        $this->db->where('tahun', $tahun);
+        $this->db->where('status', 'Menunggak');
+        $result['menunggak'] = $this->db->get($this->table)->num_rows();
+
+        return $result;
+    }
+
+    /**
+     * Get iuran yang belum dibayar
+     */
+    public function get_pending()
+    {
+        $this->db->select('iuran_kas.*, penduduk.nama, penduduk.no_rumah');
+        $this->db->from($this->table);
+        $this->db->join('penduduk', 'iuran_kas.penduduk_id = penduduk.id');
+        $this->db->where_in('iuran_kas.status', array('Belum Bayar', 'Menunggak'));
+        $this->db->order_by('iuran_kas.tahun', 'DESC');
+        $this->db->order_by('iuran_kas.bulan', 'DESC');
+        return $this->db->get()->result_array();
     }
 }
